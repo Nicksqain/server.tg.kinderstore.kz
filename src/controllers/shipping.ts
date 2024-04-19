@@ -4,7 +4,6 @@ import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
 
 export const getMethods = (api: WooCommerceRestApi) => {
   return (req: Request, res: Response) => {
-    console.log(req.query);
     api
       .get("shipping/zones/1/methods", {})
       .then((response) => {
