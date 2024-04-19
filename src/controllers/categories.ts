@@ -40,12 +40,12 @@ export const getCategories = (api: WooCommerceRestApi) => {
         // console.log("Response Status:", response.status);
         // console.log("Response Headers:", response.headers);
         // console.log("Response Data:", response.data);
-        console.log("Total of pages:", response.headers["x-wp-totalpages"]);
-        console.log("Total of items:", response.headers["x-wp-total"]);
+        // console.log("Total of pages:", response.headers["x-wp-totalpages"]);
+        // console.log("Total of items:", response.headers["x-wp-total"]);
         const categoryTree = buildCategoryTree(response.data);
         const categoryTreeJSON = getCategoryTreeJSON(categoryTree);
 
-        console.log(JSON.stringify(categoryTreeJSON, null, 2));
+        // console.log(JSON.stringify(categoryTreeJSON, null, 2));
         return res.json(categoryTreeJSON);
       })
       .catch((error) => {
