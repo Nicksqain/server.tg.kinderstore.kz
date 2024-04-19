@@ -38,6 +38,35 @@ export const getCustomer = (api: WooCommerceRestApi) => {
   };
 };
 
+export const updateCustomer = (api: WooCommerceRestApi) => {
+  return (req: Request, res: Response) => {
+    const { customerId } = req.params;
+    api
+      .put(`customers/${customerId}`, {
+        ...req.body,
+      })
+      .then((response) => {
+        // Successful request
+        // console.log("Response Status:", response.status);
+        // console.log("Response Headers:", response.headers);
+        // console.log("Response Data:", response.data);
+        // console.log("Total of pages:", response.headers["x-wp-totalpages"]);
+        // console.log("Total of items:", response.headers["x-wp-total"]);
+        return res.json(response.data);
+      })
+      .catch((error) => {
+        // Invalid request, for 4xx and 5xx statuses
+        // console.log("Response Status:", error.response.status);
+        // console.log("Response Headers:", error.response.headers);
+        // console.log("Response Data:", error.response.data);
+        return res.status(500).json(error.response.data);
+      })
+      .finally(() => {
+        // Always executed.
+      });
+  };
+};
+
 export const createCustomer = (api: WooCommerceRestApi) => {
   return (req: Request, res: Response) => {
     const { tg_id } = req.body;
