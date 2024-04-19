@@ -47,7 +47,7 @@ app.use(express.json({ limit: "4mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // ROUTES
-app.use("/frontapi", apiRoutes);
+app.use("/frontapi", authMiddleware, apiRoutes);
 app.get("/", (req: Request, res: Response) => {
   res.send("Application works!");
 });
