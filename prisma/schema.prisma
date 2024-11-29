@@ -4,11 +4,127 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+datasource db {
+  url      = env("DATABASE_URL")
+  provider = "postgresql"
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+model Product {
+  id               String         @id @default(uuid())
+  name             String
+  slug             String         @unique
+  permalink        String         @unique
+  price            Float
+  regularPrice     Float
+  salePrice        Float?
+  sku              String         @unique
+  description      String?
+  shortDescription String?
+  isPublished      Boolean        @default(true)
+  isBestseller     Boolean        @default(false)
+  stockStatus      StockStatus    @default(in_stock)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  images           Image[]
+  barcodes         String[]
+  accounting       ProductStock[]
+  categoryId       String
+  category         Category       @relation("ProductCategory", fields: [categoryId], references: [id])
+  orderItems       OrderItem[]    @relation("OrderItemToProduct")
+
+  @@map("products")
+}
+
+model ProductStock {
+  id          String   @id @default(uuid())
+  productId   String
+  warehouseId String // UUID склада
+  count       Int      @default(0) // Количество на складе
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([productId, warehouseId])
+  @@map("product_stock")
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  orderNumber   Int         @unique @default(autoincrement())
+  status        OrderStatus @default(pending)
+  totalPrice    Float
+  subtotalPrice Float
+  shippingCost  Float?
+  discount      Float?
+  tax           Float?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // // Payment details
+  // paymentStatus    PaymentStatus  @default(unpaid)
+  // paymentMethod    PaymentMethod?
+  // transactionId    String?
+
+  // Shipping and billing
+  shippingAddress String?
+  orderItems      OrderItem[] @relation("OrderToOrderItems")
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  quantity  Int
+  price     Float
+  total     Float
+  productId String
+  orderId   String
+
+  product Product @relation("OrderItemToProduct", fields: [productId], references: [id])
+
+  order Order @relation("OrderToOrderItems", fields: [orderId], references: [id])
+  @@map("order_items")
+}
+
+model Image {
+  id        String  @id @default(uuid())
+  src       String
+  alt       String?
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  main      Boolean @default(false)
+
+  @@map("product_images")
+}
+
+model Category {
+  id               String     @id @default(uuid())
+  onec_category_id String?    @unique
+  name             String
+  slug             String     @unique
+  products         Product[]  @relation("ProductCategory")
+  parentCategory   Category?  @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id])
+  parentCategoryId String?
+  children         Category[] @relation("CategoryHierarchy")
+
+  @@map("categories")
+}
+
+enum StockStatus {
+  in_stock
+  out_of_stock
+  low_stock
+}
+
+enum OrderStatus {
+  pending
+  processing
+  completed
+  cancelled
+  @@map("order_status")
 }

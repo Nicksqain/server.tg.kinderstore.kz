@@ -1,81 +1,70 @@
 import { Request, Response, NextFunction } from "express";
+import { IOrder } from "src/models/IOrder";
+import { PrismaClient } from "@prisma/client";
+import botAPIService from "../services/bot";
 
-import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
+const prisma = new PrismaClient();
+export const createOrder = async (
+  req: Request<{}, {}, IOrder>,
+  res: Response
+) => {
+  try {
+    const orderData = req.body;
+    const orderItems = await prisma.product.findMany({
+      where: {
+        id: {
+          in: orderData.line_items.map((item) => item.product_id),
+        },
+      },
+    });
+    console.log(orderData.line_items.map((item) => item.product_id.trim()));
+    console.log(orderItems);
+    const totalAmount = orderItems.reduce((total, item) => {
+      const lineItem = orderData.line_items.find(
+        (lineItem) => lineItem.product_id === item.id
+      );
+      const quantity = lineItem?.quantity || 0;
+      const price = item?.price || 0;
+      return total + quantity * price;
+    }, 0);
 
-export const createOrder = (api: WooCommerceRestApi) => {
-  return (req: Request, res: Response) => {
-    api
-      .post("orders", {
-        ...req.body,
-      })
-      .then((response) => {
-        // Successful request
-        return res.json(response.data);
-      })
-      .catch((error) => {
-        // Invalid request, for 4xx and 5xx statuses
-        return res.status(500).json(error.response.data);
-      })
-      .finally(() => {
-        // Always executed.
-      });
-  };
+    const orderTGMessage = `
+*Новый заказ:*
+
+Имя:
+${orderData.billing.first_name || ""} ${orderData.billing.last_name || ""}
+
+Телефон:
+${orderData.billing.phone}
+
+Адрес:
+${orderData.billing.address_1}
+
+Комментарий к заказу:
+${orderData.customer_note || ""}
+
+*Товары:*
+${orderItems
+  .map((item) => {
+    const lineItem = orderData.line_items.find(
+      (lineItem) => lineItem.product_id === item.id
+    );
+    const quantity = lineItem?.quantity || 0; // Добавлено значение по умолчанию
+    const price = item?.price || 0; // Добавлено значение по умолчанию
+    return `- ${item.name} - ${quantity} шт. по ${price} KZT`;
+  })
+  .join("\n")}
+
+*Общая сумма:* ${totalAmount} KZT
+`;
+    // console.log(orderTGMessage);
+    await botAPIService.notification(orderTGMessage);
+    return res.json({ message: "Заказ создан" });
+  } catch (error) {
+    return res.status(500).json({ message: "Ошибка создания заказа", error });
+  }
 };
-export const cancelOrder = (api: WooCommerceRestApi) => {
-  return (req: Request, res: Response) => {
-    const { orderId } = req.params;
-    api
-      .put(`orders/${orderId}`, {
-        status: "cancelled",
-      })
-      .then((response) => {
-        // Successful request
-        console.log("Response Status:", response.status);
-        console.log("Response Headers:", response.headers);
-        console.log("Response Data:", response.data);
-        return res.json(response.data);
-      })
-      .catch((error) => {
-        // Invalid request, for 4xx and 5xx statuses
-        console.log("Response Status:", error.response.status);
-        console.log("Response Headers:", error.response.headers);
-        console.log("Response Data:", error.response.data);
-        return res.status(500).json(error.response.data);
-      })
-      .finally(() => {
-        // Always executed.
-      });
-  };
-};
 
-export const getOrders = (api: WooCommerceRestApi) => {
-  return (req: Request, res: Response) => {
-    api
-      .get("orders", {
-        ...req.query,
-        per_page: 100,
-      })
-      .then((response) => {
-        res.setHeader("x-wp-totalpages", response.headers["x-wp-totalpages"]);
-        res.setHeader("x-wp-total", response.headers["x-wp-total"]);
-        // Successful request
-        // console.log("Response Status:", response.status);
-        // console.log("Response Headers:", response.headers);
-        // console.log("Response Data:", response.data);
-        // console.log("Total of pages:", response.headers["x-wp-totalpages"]);
-        // console.log("Total of items:", response.headers["x-wp-total"]);
+export const cancelOrder = (req: Request, res: Response) => {};
 
-        return res.json(response.data);
-      })
-      .catch((error) => {
-        // Invalid request, for 4xx and 5xx statuses
-        // console.log("Response Status:", error.response.status);
-        // console.log("Response Headers:", error.response.headers);
-        // console.log("Response Data:", error.response.data);
-        return res.status(500).json(error.response.data);
-      })
-      .finally(() => {
-        // Always executed.
-      });
-  };
-};
+export const getOrders = (req: Request, res: Response) => {};

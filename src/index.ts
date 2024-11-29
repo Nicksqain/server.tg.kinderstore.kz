@@ -1,17 +1,27 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
+import morgan from "morgan";
 import { Request, Response, NextFunction } from "express";
+
+dotenv.config();
+
+if (process.env.NODE_ENV) {
+  const envFile = `.env.${process.env.NODE_ENV}`;
+  dotenv.config({ path: envFile });
+}
 // import { PrismaClient } from "@prisma/client";
 
 // Routes
 import apiRoutes from "./routes/api";
+import syncRoutes from "./routes/sync";
 
-import morgan from "morgan";
 import { authMiddleware } from "./middlewares/auth";
 
 var bodyParser = require("body-parser");
-// const prisma = new PrismaClient();
+
 const app = express();
+
 app.use(
   cors({
     exposedHeaders: ["x-wp-total", "x-wp-totalpages"],
@@ -48,6 +58,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ROUTES
 app.use("/frontapi", authMiddleware, apiRoutes);
+app.use("/sync", syncRoutes);
 app.get("/", (req: Request, res: Response) => {
   res.send("Application works!");
 });

@@ -1,10 +1,10 @@
 import express, { Request, Response } from "express";
 import { getCategories } from "../controllers/categories";
-const categoriesRouter = (api: any) => {
+const categoriesRouter = () => {
   const router = express.Router();
 
   // Обработчик маршрута
-  router.get("/", getCategories(api));
+  router.get("/", getCategories);
 
   return router;
 };

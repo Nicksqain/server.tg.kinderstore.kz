@@ -30,6 +30,11 @@ export const authMiddleware = (
 ) => {
   const initData = req.headers["initdata"] as string | undefined;
 
+  if (process.env.NODE_ENV === "development") {
+    next();
+    return;
+  }
+
   if (!initData) {
     return res.status(401).json({ message: "Unauthorized - missing headers" });
   }

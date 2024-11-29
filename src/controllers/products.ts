@@ -1,53 +1,74 @@
 import { Request, Response, NextFunction } from "express";
+import { PrismaClient } from "@prisma/client";
 
-import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
+const prisma = new PrismaClient();
 
-export const getProducts = (api: WooCommerceRestApi) => {
-  return (req: Request, res: Response) => {
-    api
-      .get("products", {
-        ...req.query,
-        stock_status: "instock",
-        per_page: 12,
-      })
-      .then((response) => {
-        res.setHeader("x-wp-totalpages", response.headers["x-wp-totalpages"]);
-        res.setHeader("x-wp-total", response.headers["x-wp-total"]);
-        // Successful request
-        // console.log("Response Status:", response.status);
-        // console.log("Response Headers:", response.headers);
-        // console.log("Response Data:", response.data);
-        // console.log("Total of pages:", response.headers["x-wp-totalpages"]);
-        // console.log("Total of items:", response.headers["x-wp-total"]);
-        return res.json(response.data);
-      })
-      .catch((error) => {
-        // Invalid request, for 4xx and 5xx statuses
-        // console.log("Response Status:", error.response.status);
-        // console.log("Response Headers:", error.response.headers);
-        // console.log("Response Data:", error.response.data);
-        return res.status(500).json(error.response.data);
-      })
-      .finally(() => {
-        // Always executed.
+export const getProducts = async (req: Request, res: Response) => {
+  req.on("close", () => {
+    prisma.$disconnect();
+    return res.end();
+  });
+
+  try {
+    // Извлечение параметров из запроса
+    const { category: categorySlug } = req.query; // Изменено на categorySlug
+
+    // Создание объекта фильтрации
+    const filter: any = {};
+
+    // Если slug категории указан, добавляем его в фильтр
+    if (categorySlug) {
+      // Сначала находим категорию по slug
+      const category = await prisma.category.findUnique({
+        where: {
+          products: { some: {} },
+          slug: categorySlug.toString(), // Фильтрация по slug
+        },
       });
-  };
+
+      // Если категория найдена, добавляем её id в фильтр
+      if (category) {
+        filter.categoryId = category.id; // Используем categoryId для фильтрации продуктов
+      } else {
+        // Если категория не найдена, можно вернуть пустой массив или ошибку
+        return res.json({ data: [] });
+      }
+    }
+
+    // Запрос к базе данных с фильтрацией
+    const data = await prisma.product.findMany({
+      where: filter,
+      include: {
+        category: true,
+        images: true,
+      },
+    });
+
+    return res.json({ data });
+  } catch (error) {
+    console.error(error); // Логирование ошибки для отладки
+    return res
+      .status(500)
+      .json({ message: "Ошибка получения номенклатур из 1С" });
+  }
 };
 
-export const getProduct = (api: WooCommerceRestApi) => {
-  return (req: Request, res: Response) => {
-    const productIdToFind = req.params.productId;
-    api
-      .get(`products/${productIdToFind}`, {})
-      .then((response) => {
-        // Successful request
-        return res.json(response.data);
-      })
-      .catch((error) => {
-        return res.status(500).json(error.response.data);
-      })
-      .finally(() => {
-        // Always executed.
-      });
-  };
+export const getProduct = async (req: Request, res: Response) => {
+  try {
+    const productSlugToFind = req.params.productSlug;
+    const data = await prisma.product.findUnique({
+      where: {
+        slug: productSlugToFind,
+      },
+      include: {
+        category: true,
+        images: true,
+      },
+    });
+    return res.json({ data });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Ошибка получения номенклатур из 1С", error });
+  }
 };
