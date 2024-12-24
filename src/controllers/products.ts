@@ -11,7 +11,7 @@ export const getProducts = async (req: Request, res: Response) => {
 
   try {
     // Извлечение параметров из запроса
-    const { category: categorySlug } = req.query; // Изменено на categorySlug
+    const { category: categorySlug, orderby, order } = req.query;
 
     // Создание объекта фильтрации
     const filter: any = {};
@@ -30,7 +30,6 @@ export const getProducts = async (req: Request, res: Response) => {
       if (category) {
         filter.categoryId = category.id; // Используем categoryId для фильтрации продуктов
       } else {
-        // Если категория не найдена, можно вернуть пустой массив или ошибку
         return res.json({ data: [] });
       }
     }
@@ -38,9 +37,16 @@ export const getProducts = async (req: Request, res: Response) => {
     // Фильтр для товаров, которые есть в наличии
     filter.stockStatus = "in_stock";
 
-    // Запрос к базе данных с фильтрацией
+    // Создание объекта сортировки
+    const sort: any = {};
+    if (orderby && order) {
+      sort[orderby.toString()] = order.toString();
+    }
+
+    // Запрос к базе данных с фильтрацией и сортировкой
     const data = await prisma.product.findMany({
       where: filter,
+      orderBy: sort,
       include: {
         category: true,
         images: true,
@@ -49,7 +55,7 @@ export const getProducts = async (req: Request, res: Response) => {
 
     return res.json({ data });
   } catch (error) {
-    console.error(error); // Логирование ошибки для отладки
+    console.error(error);
     return res
       .status(500)
       .json({ message: "Ошибка получения номенклатур из 1С" });
