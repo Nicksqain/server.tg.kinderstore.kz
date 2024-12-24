@@ -35,6 +35,9 @@ export const getProducts = async (req: Request, res: Response) => {
       }
     }
 
+    // Фильтр для товаров, которые есть в наличии
+    filter.stockStatus = "in_stock";
+
     // Запрос к базе данных с фильтрацией
     const data = await prisma.product.findMany({
       where: filter,
