@@ -20,15 +20,16 @@ const prismaClient = new PrismaClient({
 async function downloadImage(fileName: string, imageData: string) {
   const buffer = Buffer.from(imageData, "base64");
 
+  const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9-_]/g, "_");
   const fullFilePath = path.join(
     process.env.UPLOADS_MEDIA_PATH || "",
     "products",
-    `${path.basename(fileName)}.jpg`
+    `${sanitizedFileName}.jpg`
   );
 
   await fs.promises.mkdir(path.dirname(fullFilePath), { recursive: true });
   await fs.promises.writeFile(fullFilePath, buffer);
-  return path.posix.join("media", "products", `${fileName}.jpg`);
+  return path.posix.join("media", "products", `${sanitizedFileName}.jpg`);
 }
 
 // Функция для обработки изображений товара
