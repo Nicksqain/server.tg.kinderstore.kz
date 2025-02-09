@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, StockStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -35,7 +35,9 @@ export const getProducts = async (req: Request, res: Response) => {
     }
 
     // Фильтр для товаров, которые есть в наличии
-    filter.stockStatus = "in_stock";
+    filter.stockStatus = {
+      in: [StockStatus.in_stock, StockStatus.low_stock],
+    };
 
     // Создание объекта сортировки
     const sort: any = {};
