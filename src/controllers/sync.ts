@@ -126,11 +126,11 @@ async function processProduct(
       0
     );
     if (totalStock > 10) {
-      stockStatus = "in_stock";
+      stockStatus = StockStatus.in_stock;
     } else if (totalStock > 0) {
-      stockStatus = "low_stock";
+      stockStatus = StockStatus.low_stock;
     } else {
-      stockStatus = "out_of_stock";
+      stockStatus = StockStatus.out_of_stock;
     }
   }
 
@@ -192,6 +192,14 @@ async function processProduct(
     })
   );
 
+  // Удаление ненужных существующих остатков
+  await transaction.productStock.deleteMany({
+    where: {
+      productId: product.product_id,
+      warehouseId: { notIn: product.accounting.map((a) => a.warehouse) },
+    },
+  });
+
   await Promise.all(stockUpdates);
 }
 
@@ -217,11 +225,20 @@ export const syncProducts = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Ошибка получения данных из 1С" });
     }
 
+    const limit = parseInt(process.env.SYNC_PRODUCT_LIMIT || "0", 10);
     const productsFrom1C = data
       .filter((item) => item.product_art)
-      .slice(0, 400); // Ограничение на 100 товаров
+      .slice(0, limit || data.length);
 
     logger.info(`Обработка ${productsFrom1C.length} товаров...`);
+
+    // Получаем список идентификаторов товаров из 1С
+    const productArtsFrom1C = new Set(
+      productsFrom1C.map((item) => item.product_art)
+    );
+
+    // Обнуление стоков, которых нет в 1С
+    await resetObsoleteProductsStocks(productArtsFrom1C);
 
     let failureProducts: { product_name: string; product_art: string }[] = [];
     for (const product of productsFrom1C) {
@@ -304,6 +321,35 @@ export const syncProducts = async (req: Request, res: Response) => {
       error,
     });
   }
+};
+
+// Функция для обнуления остатков устаревших товаров
+const resetObsoleteProductsStocks = async (productArtsFrom1C: Set<string>) => {
+  await prismaClient.$transaction(async (transaction) => {
+    // Обнуляем стоки для устаревших товаров
+    await transaction.productStock.updateMany({
+      where: {
+        product: {
+          sku: {
+            notIn: Array.from(productArtsFrom1C),
+          },
+        },
+      },
+      data: {
+        count: 0,
+      },
+    });
+    await transaction.product.updateMany({
+      where: {
+        sku: {
+          notIn: Array.from(productArtsFrom1C),
+        },
+      },
+      data: {
+        stockStatus: StockStatus.out_of_stock,
+      },
+    });
+  });
 };
 
 // Экспортируем контроллер
